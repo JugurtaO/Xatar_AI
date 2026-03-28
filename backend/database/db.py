@@ -1,13 +1,21 @@
 import chromadb
-from core.embeddings import get_embedding_model
+import os
 
 _collection = None
 
 def get_vector_db():
     global _collection
     if _collection is None:
-        client = chromadb.HttpClient(host="localhost", port=8000)
+        # Si tu lances le python hors docker, garde localhost. 
+        # Si tu lances DANS docker, utilise "chromadb"
+        host = os.getenv("CHROMA_HOST", "localhost") 
         
-        _collection = client.get_or_create_collection(name="gen_ai_<rag")
-        print("✅ Connexion à la collection établie")
+        client = chromadb.HttpClient(host=host, port=8000)
+        
+        # On définit la méthode de calcul de distance (HNSW) pour la précision
+        _collection = client.get_or_create_collection(
+            name="xatar_rag_collection",
+            metadata={"hnsw:space": "cosine"} # Cosine similarity est idéal pour le RAG
+        )
+        print(f"✅ Connexion à ChromaDB ({host}) établie")
     return _collection

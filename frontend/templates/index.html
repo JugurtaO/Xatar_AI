@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 
 <head>
     <meta charset="UTF-8">
@@ -7,113 +7,184 @@
     <title>Xatar AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
-        rel="stylesheet">
     <link rel="stylesheet" href="../static/styles.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+        rel="stylesheet">
+
 </head>
 
-<body class="font-ibm-plex">
-    <div class="app-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-content">
-                <h1 class="header-title">Xatar AI</h1>
-                <button id="clearBtn" class="clear-btn" style="display: none;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="m3 6 18 0"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+<body>
+
+    <!-- PDF Viewer Modal -->
+    <div class="pdf-viewer-overlay" id="pdfViewerOverlay">
+        <div class="pdf-viewer-modal">
+            <div class="pdf-viewer-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e05252" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14,2 14,8 20,8" />
+                </svg>
+                <span class="pdf-viewer-title" id="pdfViewerTitle">document.pdf</span>
+                <button class="pdf-viewer-close" id="pdfViewerClose">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
-                    Clear Chat
                 </button>
             </div>
-        </div>
-
-        <!-- Chat Container -->
-        <div class="chat-container">
-            <!-- Messages Area -->
-            <div class="messages-area">
-                <div class="messages-content">
-                    <!-- Welcome Screen -->
-                    <div id="welcomeScreen" class="welcome-screen">
-                        <div class="welcome-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
-                                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                                <line x1="9" y1="9" x2="9.01" y2="9" />
-                                <line x1="15" y1="9" x2="15.01" y2="9" />
-                            </svg>
-                        </div>
-                        <h2 class="welcome-title">Welcome to Xatar AI Assistant</h2>
-                        <p class="welcome-text">Choose a model and start a conversation. I'm here to help with your
-                            questions and tasks.</p>
-                    </div>
-
-                    <!-- Messages Container -->
-                    <div id="messagesContainer" class="messages-container"></div>
-
-                    <!-- Loading Indicator -->
-                    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                        <div class="loading-bubble">
-                            <div class="loading-content">
-                                <div class="loading-dots">
-                                    <div class="dot"></div>
-                                    <div class="dot"></div>
-                                    <div class="dot"></div>
-                                </div>
-                                <span class="loading-text">AI is thinking...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Messages End -->
-                    <div id="messagesEnd"></div>
-                </div>
-            </div>
-
-            <!-- Input Area -->
-            <div class="input-area">
-                <div class="input-content">
-                    <form id="chatForm" class="chat-form">
-                        <!-- Model Selection -->
-                        <div class="model-section">
-                            <span class="model-label">Model:</span>
-                            <div class="select-wrapper">
-                                <select id="modelSelect" class="model-select">
-                                    <option value="llama" selected>Llama</option>
-                                    <option value="mistral">Mistral</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Message Input -->
-                        <div class="input-section">
-                            <div class="textarea-container">
-                                <textarea id="messageInput" class="message-textarea"
-                                    placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-                                    rows="1"></textarea>
-                            </div>
-
-                            <button type="submit" id="sendButton" class="send-button">
-                                <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
-                                </svg>
-                                <div id="loadingSpinner" class="loading-spinner" style="display: none;">
-                                    <div class="spinner"></div>
-                                </div>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div class="pdf-viewer-body">
+                <iframe id="pdfViewerFrame" title="PDF Viewer"></iframe>
             </div>
         </div>
     </div>
 
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">Xatar AI</div>
+            <div class="brand-sub">Assistant contextuel</div>
+        </div>
+
+        <div class="upload-section">
+            <div class="section-label">Documents PDF</div>
+            <div class="drop-zone" id="dropZone">
+                <input type="file" id="fileInput" accept=".pdf" multiple>
+                <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14,2 14,8 20,8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <polyline points="9 15 12 12 15 15" />
+                </svg>
+                <div class="drop-text">
+                    <strong>Glisser-déposer</strong> ou cliquer<br>pour importer des PDF
+                </div>
+            </div>
+        </div>
+
+        <div class="pdf-list-section">
+            <div class="section-label">Fichiers importés</div>
+            <div id="pdfList">
+                <div class="pdf-empty" id="pdfEmpty">Aucun fichier importé</div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <button class="view-pdf-btn" id="viewPdfBtn" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                Voir le PDF sélectionné
+            </button>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="chat-header">
+            <div class="model-pill">
+                <div class="model-dot"></div>
+                <select class="model-select" id="modelSelect">
+                    <option value="llama3">Llama</option>
+                    <option value="mistral">Mistral</option>
+                </select>
+            </div>
+            <div class="active-pdf-tag" id="activePdfTag" style="display:none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14,2 14,8 20,8" />
+                </svg>
+                <span id="activePdfName"></span>
+            </div>
+            <div class="spacer"></div>
+            <button id="clearBtn" class="clear-btn" style="display:none;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m3 6 18 0" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+                Clear Chat
+            </button>
+        </div>
+
+        <div class="messages-area">
+            <div id="welcomeScreen" class="welcome-screen">
+                <div class="welcome-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.5">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                    </svg>
+                </div>
+                <h2 class="welcome-title">Welcome to Xatar AI Assistant</h2>
+                <p class="welcome-text">Importez des PDF dans le panneau gauche, sélectionnez-en un pour le donner en
+                    contexte, puis posez vos questions.</p>
+            </div>
+
+            <div id="messagesContainer"></div>
+
+            <div id="loadingIndicator" class="loading-indicator">
+                <div class="loading-avatar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.5">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                    </svg>
+                </div>
+                <div class="loading-bubble">
+                    <div class="loading-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <span class="loading-text">AI is thinking...</span>
+                </div>
+            </div>
+
+            <div id="messagesEnd"></div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-context-bar" id="inputContextBar">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14,2 14,8 20,8" />
+                </svg>
+                <span class="input-context-name" id="inputContextName"></span>
+                <button class="deselect-btn" id="deselectPdfBtn" title="Retirer le contexte PDF">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+
+            <form id="chatForm" class="input-section">
+                <div class="textarea-container">
+                    <textarea id="messageInput" class="message-textarea"
+                        placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+                        rows="1"></textarea>
+                </div>
+                <button type="submit" id="sendButton" class="send-button" disabled>
+                    <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22,2 15,22 11,13 2,9 22,2" />
+                    </svg>
+                    <div id="loadingSpinner" class="loading-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script src="../static/script.js"></script>
+
 </body>
 
 </html>

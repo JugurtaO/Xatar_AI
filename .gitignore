@@ -1,0 +1,37 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# --- Flask / App ---
+instance/
+.pytest_cache/
+*.log
+
+# --- Données Locales (CRITIQUE) ---
+# On ignore les PDFs que tu as uploadés
+backend/data/uploads/*.pdf
+# Si tu as un dossier data à la racine
+data/uploads/
+*.pdf
+
+# --- Base de données Vectorielle ---
+# On ignore les fichiers de la DB pour ne pas écraser la DB des autres
+chroma_data/
+backend/data/chroma.sqlite3
+backend/data/*/
+
+# --- Docker ---
+.docker/
+*.tar
+
+# --- OS / IDE ---
+.DS_Store
+.vscode/
+.idea/
+*.swp

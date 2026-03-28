@@ -9,33 +9,19 @@ services:
       - ollama_data:/root/.ollama
     restart: unless-stopped
 
-  # BD Vectorielle
+  # --- BD Vectorielle ---
   chromadb:
     image: chromadb/chroma:latest
     container_name: chromadb
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chromadb/data
+      - chroma_data:/data
     environment:
       - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
       - ANONYMIZED_TELEMETRY=FALSE
     restart: unless-stopped
-
-  #Backend
-  # backend:
-  #   build: ./server
-  #   container_name: rag_backend
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ./server:/app
-  #   environment:
-  #     - OLLAMA_HOST=http://ollama:11434
-  #     - CHROMA_HOST=chromadb
-  #   depends_on:
-  #     - ollama
-  #     - chromadb
 
 volumes:
   ollama_data:
