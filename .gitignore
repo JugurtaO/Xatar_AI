@@ -3,6 +3,7 @@ __pycache__/
 backend/core/__pycache__
 *.py[cod]
 *$py.class
+*.pyc 
 .venv/
 venv/
 ENV/
