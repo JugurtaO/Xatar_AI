@@ -45,6 +45,33 @@ document.addEventListener('DOMContentLoaded', function () {
     setupEventListeners();
     setupPdfListeners();
     updateSendButton();
+
+    // --- CHARGEMENT DES DOCUMENTS EXISTANTS ---
+    const dataElement = document.getElementById('backend-docs-data');
+    if (dataElement) {
+        try {
+            const serverDocs = JSON.parse(dataElement.textContent);
+
+            serverDocs.forEach(doc => {
+                const existingPdf = {
+                    id: doc.real_name, // L'ID est le nom avec UUID (unique)
+                    name: doc.display_name, // Nom propre affiché
+                    realName: doc.real_name, // Nom réel pour le backend
+                    size: doc.size,
+                    file: null, // Pas d'objet File car déjà sur serveur
+                    objectUrl: null, // Géré par la route Flask
+                    status: 'ready',
+                    progress: 100,
+                    currentStep: 'Prêt'
+                };
+                window.pdfState.pdfs.push(existingPdf);
+            });
+
+            renderPdfList();
+        } catch (e) {
+            console.error("Erreur lors de la récupération des documents existants:", e);
+        }
+    }
 });
 
 // ─────────────────────────────────────────
@@ -214,7 +241,7 @@ function displayMessage(message) {
             <div class="message-header">
                 <div class="message-avatar">${avatarIcon}</div>
                 <div class="message-info">
-                    <span class="message-sender">${message.type === 'user' ? 'You' : 'AI Assistant'}</span>
+                    <span class="message-sender">${message.type === 'user' ? 'You' : 'Xatar AI'}</span>
                     ${modelBadge}
                 </div>
             </div>
@@ -301,7 +328,9 @@ function setupPdfListeners() {
         const pdf = getActivePdf();
         if (!pdf) return;
         pdfViewerTitle.textContent = pdf.name;
-        pdfViewerFrame.src = pdf.objectUrl;
+        // Si pdf.objectUrl existe -> Fichier qui vient d'être uploadé (local) 
+        //  Sinon -> Fichier déjà sur le serveur, on utilise la route Flask
+        pdfViewerFrame.src = pdf.objectUrl ? pdf.objectUrl : `/backend/data/uploads/${pdf.realName}`;;
         pdfViewerOverlay.classList.add('open');
     });
 
@@ -321,6 +350,7 @@ function handlePdfFiles(files) {
         const newPdf = {
             id: Date.now() + Math.random(),
             name: file.name,
+            realName: null,
             size: file.size,
             file: file,
             objectUrl: URL.createObjectURL(file),
@@ -384,12 +414,46 @@ function selectPdf(id) {
     renderPdfList();
 }
 
-function removePdf(id) {
+// function removePdf(id) {
+//     const pdf = window.pdfState.pdfs.find(p => p.id === id);
+//     if (pdf) URL.revokeObjectURL(pdf.objectUrl);
+//     window.pdfState.pdfs = window.pdfState.pdfs.filter(p => p.id !== id);
+//     if (window.pdfState.selectedId === id) window.pdfState.selectedId = null;
+//     renderPdfList();
+// }
+async function removePdf(id) {
+    // Dans ton cas, l'ID des fichiers existants est le 'realName' (avec UUID)
+    // Pour les nouveaux fichiers, c'est le timestamp, mais on va s'adapter
     const pdf = window.pdfState.pdfs.find(p => p.id === id);
-    if (pdf) URL.revokeObjectURL(pdf.objectUrl);
-    window.pdfState.pdfs = window.pdfState.pdfs.filter(p => p.id !== id);
-    if (window.pdfState.selectedId === id) window.pdfState.selectedId = null;
-    renderPdfList();
+    if (!pdf) return;
+
+    // Si l'utilisateur supprime le PDF actuellement sélectionné
+    if (window.pdfState.selectedId === id) {
+        selectPdf(null);
+    }
+
+    // On détermine le nom de fichier à envoyer au backend
+    const filenameToDelete = pdf.realName || pdf.name;
+
+    try {
+        // 1. Appel au backend pour la suppression réelle
+        const response = await fetch(`${BASE_URL}/delete/${filenameToDelete}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            // 2. Si le backend a réussi, on nettoie le frontend
+            if (pdf.objectUrl) URL.revokeObjectURL(pdf.objectUrl);
+            window.pdfState.pdfs = window.pdfState.pdfs.filter(p => p.id !== id);
+            renderPdfList();
+            console.log(`Document ${filenameToDelete} supprimé.`);
+        } else {
+            alert("Erreur lors de la suppression sur le serveur.");
+        }
+    } catch (error) {
+        console.error("Erreur réseau lors de la suppression:", error);
+        alert("Impossible de contacter le serveur pour la suppression.");
+    }
 }
 
 function getActivePdf() {
@@ -445,19 +509,22 @@ async function uploadAndIngest(pdfObj) {
             lines.forEach(line => {
                 if (line.startsWith('data: ')) {
                     const status = line.replace('data: ', '').trim();
+                    const [step, value] = status.split(':');
 
-                    // On attend un format "etape:pourcentage" (ex: "chunking:45")
-                    const [step, percent] = status.split(':');
-
-                    pdfObj.currentStep = step;
-                    pdfObj.progress = parseInt(percent) || pdfObj.progress;
-
-                    if (step === 'done') {
+                    if (step === 'filename') {
+                        // ON ENREGISTRE LE VRAI NOM GÉNÉRÉ PAR LE SERVEUR
+                        pdfObj.realName = value;
+                    } else if (step === 'done') {
                         pdfObj.status = 'ready';
                         pdfObj.currentStep = 'Terminé';
+                        // Optionnel : on peut aussi mettre l'ID à jour avec le realName
+                        pdfObj.id = pdfObj.realName;
+                    } else {
+                        pdfObj.currentStep = step;
+                        pdfObj.progress = parseInt(value) || pdfObj.progress;
                     }
 
-                    renderPdfList(); // On rafraîchit la vue à chaque mise à jour
+                    renderPdfList();
                 }
             });
         }

@@ -183,6 +183,10 @@
         </div>
     </div>
 
+    <div id="backend-docs-data" style="display: none;">
+        {{ initial_docs | tojson | safe if initial_docs else '[]' }}
+    </div>
+
     <script src="../static/script.js"></script>
 
 </body>

@@ -1,5 +1,5 @@
 import os, uuid
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, Response, send_from_directory
 from werkzeug.utils import secure_filename
 from backend.database.db import get_vector_db
 from backend.core.generation.OllamaGenerator import llama_response, mistral_response
@@ -19,9 +19,27 @@ with app.app_context():
     except Exception as e:
         print(f"❌ Impossible de joindre ChromaDB au démarrage : {e}")
 
+
+########################
+#        ROUTES        #
+########################
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    files_data = []
+    if os.path.exists(UPLOAD_FOLDER):
+        for filename in os.listdir(UPLOAD_FOLDER):
+            if filename.endswith('.pdf'):
+                path = os.path.join(UPLOAD_FOLDER, filename)
+                parts = filename.split('_', 1)
+                display_name = parts[1] if len(parts) > 1 else filename
+                
+                files_data.append({
+                    "real_name": filename,      # Nom avec UUID (pour les requêtes)
+                    "display_name": display_name, # Nom propre (pour l'UI)
+                    "size": os.path.getsize(path) 
+                })
+
+    return render_template('index.html', initial_docs=files_data)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -70,13 +88,37 @@ def ingest():
             # process_pdf_with_status doit 'yielder' des chaînes comme "extracting:10"
             for status_message in process_pdf_with_status(path):
                 yield f"data: {status_message}\n\n"
-            
+                
+                
+            yield f"data: filename:{filename}\n\n"
             # Message final pour dire au JS de passer en 'ready'
             yield "data: done:100\n\n"
         except Exception as e:
             yield f"data: error:{str(e)}\n\n"
 
     return Response(stream_updates(), mimetype='text/event-stream')
+
+@app.route('/delete/<filename>', methods=['DELETE'])
+def delete_document(filename):
+    try:
+        # 1. Suppression physique du fichier
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # 2. Suppression dans ChromaDB
+        # On demande à la collection de supprimer tout ce qui a cette source
+        collection = get_vector_db()
+        collection.delete(where={"source": filename})
+        
+        return jsonify({"message": f"Document {filename} supprimé avec succès"}), 200
+    except Exception as e:
+        print(f"Erreur suppression: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/backend/data/uploads/<path:filename>')
+def serve_pdf(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
