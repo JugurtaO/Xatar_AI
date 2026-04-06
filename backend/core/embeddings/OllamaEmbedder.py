@@ -1,25 +1,43 @@
-from langchain_ollama import OllamaEmbeddings
+import requests
+from typing import List
 import os
 
-# On utilise un cache simple pour éviter de réinitialiser le modèle à chaque appel
-_model = None
+ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
-def get_embedding_model():
-    """
-    Initialise et retourne le modèle d'embedding configuré dans Ollama.
-    """
-    global _model
-    if _model is None:
-        # Si tu tournes dans Docker, l'URL doit pointer vers le nom du service 'ollama'
-        # Sinon, 'localhost' par défaut.
-        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        
-        # nomic-embed-text est le standard actuel (performant et léger)
-        # Assure-toi d'avoir fait un `ollama pull nomic-embed-text`
-        _model = OllamaEmbeddings(
-            model="nomic-embed-text",
-            base_url=ollama_base_url
+class OllamaEmbedder:
+    def __init__(self, base_url: str = ollama_url, model_name: str = "nomic-embed-text"):
+        self.base_url = base_url
+        self.model_name = model_name
+
+    def embed(self, text: str) -> List[float]:
+        # Ta méthode actuelle est parfaite pour une seule query
+        response = requests.post(
+            f"{self.base_url}/api/embeddings",
+            json={"model": self.model_name, "prompt": text},
+            timeout=30
         )
-        print(f"✅ Modèle d'embedding prêt (via {ollama_base_url})")
-        
-    return _model
+        response.raise_for_status()
+        return response.json()["embedding"]
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """
+        Envoie toute la liste au endpoint /api/embed d'Ollama (Vrai Batch)
+        """
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/embed",
+                json={
+                    "model": self.model_name,
+                    "input": texts  # 'input' accepte une liste de strings
+                },
+                timeout=60
+            )
+            response.raise_for_status()
+            # Le format de réponse pour /api/embed est {"embeddings": [[...], [...]]}
+            return response.json()["embeddings"]
+        except Exception as e:
+            print(f"Erreur lors du batch embedding: {e}")
+            # Fallback sur la méthode lente si l'endpoint échoue
+            return [self.embed(t) for t in texts]
+def get_embedding_model():
+    return OllamaEmbedder()

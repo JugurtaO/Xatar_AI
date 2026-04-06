@@ -6,8 +6,6 @@ _collection = None
 def get_vector_db():
     global _collection
     if _collection is None:
-        # Si tu lances le python hors docker, garde localhost. 
-        # Si tu lances DANS docker, utilise "chromadb"
         host = os.getenv("CHROMA_HOST", "localhost") 
         
         client = chromadb.HttpClient(host=host, port=8000)

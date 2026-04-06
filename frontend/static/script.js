@@ -118,9 +118,94 @@ function updateSendButton() {
 // ─────────────────────────────────────────
 // SEND MESSAGE
 // ─────────────────────────────────────────
+// async function sendMessage(content, model) {
+//     // Récupère le PDF actif avant d'envoyer
+//     const activePdf = window.pdfState.pdfs.find(p => p.id === window.pdfState.selectedId) || null;
+
+//     const userMessage = {
+//         id: Date.now().toString(),
+//         content: content,
+//         type: 'user',
+//         timestamp: new Date(),
+//         pdfName: activePdf ? activePdf.name : null
+//     };
+
+//     messages.push(userMessage);
+//     displayMessage(userMessage);
+
+//     messageInput.value = '';
+//     messageInput.style.height = 'auto';
+//     hideWelcomeScreen();
+//     showClearButton();
+//     setLoadingState(true);
+
+//     try {
+//         let response;
+
+//         if (activePdf) {
+//             // Envoi multipart/form-data avec le fichier PDF
+//             const formData = new FormData();
+//             formData.append('message', content);
+//             formData.append('model', model);
+//             formData.append('pdf', activePdf.file, activePdf.name);
+
+//             response = await fetch(`${BASE_URL}/generate`, {
+//                 method: 'POST',
+//                 body: formData
+//             });
+//         } else {
+//             // Envoi JSON classique (comportement original)
+//             response = await fetch(`${BASE_URL}/generate`, {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({ message: content, model: model })
+//             });
+//         }
+
+//         const data = await response.json();
+
+//         let aiMessage;
+//         if (data.error) {
+//             aiMessage = {
+//                 id: (Date.now() + 1).toString(),
+//                 content: `Error: ${data.error}`,
+//                 type: 'ai',
+//                 model: model,
+//                 timestamp: new Date()
+//             };
+//         } else {
+//             aiMessage = {
+//                 id: (Date.now() + 1).toString(),
+//                 content: data.response,
+//                 type: 'ai',
+//                 model: model,
+//                 duration: data.duration,
+//                 timestamp: new Date()
+//             };
+//         }
+
+//         messages.push(aiMessage);
+//         displayMessage(aiMessage);
+
+//     } catch (error) {
+//         const errorMessage = {
+//             id: (Date.now() + 1).toString(),
+//             content: `Error: ${error.message}`,
+//             type: 'ai',
+//             model: model,
+//             timestamp: new Date()
+//         };
+//         messages.push(errorMessage);
+//         displayMessage(errorMessage);
+
+//     } finally {
+//         setLoadingState(false);
+//     }
+// }
 async function sendMessage(content, model) {
-    // Récupère le PDF actif avant d'envoyer
-    const activePdf = window.pdfState.pdfs.find(p => p.id === window.pdfState.selectedId) || null;
+    // Récupère l'ID du PDF sélectionné (le realName avec UUID)
+    const selectedPdfId = window.pdfState.selectedId;
+    const activePdf = window.pdfState.pdfs.find(p => p.id === selectedPdfId) || null;
 
     const userMessage = {
         id: Date.now().toString(),
@@ -140,64 +225,44 @@ async function sendMessage(content, model) {
     setLoadingState(true);
 
     try {
-        let response;
-
-        if (activePdf) {
-            // Envoi multipart/form-data avec le fichier PDF
-            const formData = new FormData();
-            formData.append('message', content);
-            formData.append('model', model);
-            formData.append('pdf', activePdf.file, activePdf.name);
-
-            response = await fetch(`${BASE_URL}/generate`, {
-                method: 'POST',
-                body: formData
-            });
-        } else {
-            // Envoi JSON classique (comportement original)
-            response = await fetch(`${BASE_URL}/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: content, model: model })
-            });
-        }
+        // On envoie toujours du JSON maintenant que le RAG est en place
+        const response = await fetch(`${BASE_URL}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: content,
+                model: model,
+                pdf_id: selectedPdfId // Sera null si aucun PDF n'est sélectionné
+            })
+        });
 
         const data = await response.json();
 
-        let aiMessage;
-        if (data.error) {
-            aiMessage = {
-                id: (Date.now() + 1).toString(),
-                content: `Error: ${data.error}`,
-                type: 'ai',
-                model: model,
-                timestamp: new Date()
-            };
-        } else {
-            aiMessage = {
-                id: (Date.now() + 1).toString(),
-                content: data.response,
-                type: 'ai',
-                model: model,
-                duration: data.duration,
-                timestamp: new Date()
-            };
-        }
+        if (data.error) throw new Error(data.error);
+
+        const aiMessage = {
+            id: (Date.now() + 1).toString(),
+            // On affiche 'response' qui vient de ton AIResponse Pydantic
+            content: data.response || data.error || "Désolé, une erreur est survenue.",
+            type: 'ai',
+            model: model,
+            duration: data.duration,
+            timestamp: new Date(),
+            // Optionnel: on peut stocker les citations pour un affichage futur
+            citations: data.citations || []
+        };
 
         messages.push(aiMessage);
         displayMessage(aiMessage);
 
     } catch (error) {
-        const errorMessage = {
+        displayMessage({
             id: (Date.now() + 1).toString(),
-            content: `Error: ${error.message}`,
+            content: `Erreur: ${error.message}`,
             type: 'ai',
             model: model,
             timestamp: new Date()
-        };
-        messages.push(errorMessage);
-        displayMessage(errorMessage);
-
+        });
     } finally {
         setLoadingState(false);
     }

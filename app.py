@@ -1,6 +1,7 @@
 import os, uuid
 from flask import Flask, request, jsonify, render_template, Response, send_from_directory
 from werkzeug.utils import secure_filename
+from backend.core.retriever.retriever import search_context
 from backend.database.db import get_vector_db
 from backend.core.generation.OllamaGenerator import llama_response, mistral_response
 from backend.core.ingestion.process_pdf_with_status import process_pdf_with_status
@@ -46,25 +47,30 @@ def generate():
     data = request.json
     user_message = data.get('message')
     model = data.get('model')
-    #pdfs= si l'utilisatur décide d'en choisir certains  pour le LLM - TODO 
+    pdf_id= data.get("pdf_id")
    
     if not user_message or not model:
         return jsonify({"error": "Missing message or model selection"}), 400
-   
-    system_prompt = "You are an AI assistant helping with customer inquiries. Provide a helpful and concise response."
-   
+      
     start_time = time.time()
    
     try:
-        if model == 'llama':
-            result = llama_response(system_prompt, user_message) #fonction à adpater 
-        elif model == 'mistral':
-            result = mistral_response(system_prompt, user_message)  #fonction à adpater 
+       
+        print("BEFORE RETREIVING")
+
+        context = search_context(user_message, target_file_id=pdf_id)
+
+        if 'llama' in model.lower():
+            print("ENTRING FUNCTION")
+            result = llama_response(user_message, context) 
+        elif 'mistral' in model.lower():
+            result = mistral_response(user_message, context)
         else:
-            return jsonify({"error": "Invalid model selection"}), 400
+            return jsonify({"error": "Modèle non supporté"}), 400
        
         result['duration'] = time.time() - start_time
         return jsonify(result)
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -84,14 +90,13 @@ def ingest():
     
     def stream_updates():
         try:
-            # On consomme le générateur de ton service ingestion
+            # On consomme le générateur du service d'ingestion
             # process_pdf_with_status doit 'yielder' des chaînes comme "extracting:10"
             for status_message in process_pdf_with_status(path):
                 yield f"data: {status_message}\n\n"
                 
                 
             yield f"data: filename:{filename}\n\n"
-            # Message final pour dire au JS de passer en 'ready'
             yield "data: done:100\n\n"
         except Exception as e:
             yield f"data: error:{str(e)}\n\n"
@@ -107,7 +112,6 @@ def delete_document(filename):
             os.remove(file_path)
         
         # 2. Suppression dans ChromaDB
-        # On demande à la collection de supprimer tout ce qui a cette source
         collection = get_vector_db()
         collection.delete(where={"source": filename})
         
